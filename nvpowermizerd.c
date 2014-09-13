@@ -48,7 +48,7 @@ typedef enum Mode {
    HIGH_POWER,
 } Mode;
 
-Mode currentMode = LOW_POWER;
+static Mode currentMode = LOW_POWER;
 
 // Debug / logging macros
 #ifdef DEBUG
@@ -61,26 +61,16 @@ Mode currentMode = LOW_POWER;
 #define LOG(...) \
    printf(__VA_ARGS__);
 
+// Global variables for X access
+static XScreenSaverInfo *SSInfo;
+static Display *display;
+static int screen;
+
 // Returns the idle time in milliseconds as reported by X
-time_t GetIdleTimeMS () {
-   XScreenSaverInfo *SSInfo;
-   Display *display;
-   time_t idleTime;
-   int screen;
-
-   SSInfo = XScreenSaverAllocInfo();
-   if ((display = XOpenDisplay(NULL)) == NULL) {
-      return -1;
-   }
-   screen = DefaultScreen(display);
-
+inline time_t GetIdleTimeMS()
+{
    XScreenSaverQueryInfo(display, RootWindow(display,screen), SSInfo);
-   idleTime = SSInfo->idle;
-
-   XFree(SSInfo);
-   XCloseDisplay(display); 
-
-   return idleTime;
+   return SSInfo->idle;
 }
 
 void SwitchToLowPower()
@@ -109,26 +99,47 @@ void SwitchToHighPower()
    currentMode = HIGH_POWER;
 }
 
+void Cleanup()
+{
+   XFree(SSInfo);
+   XCloseDisplay(display);
+}
+
 void HandleSignal(int signum)
 {
    LOGDEBUG("Signal %d received.\n", signum);
 
    SwitchToLowPower();
+   Cleanup();
 
    LOG("Exiting program.\n");
-
    exit(0);
+}
+
+void Init()
+{
+   struct sigaction action;
+
+   // Install signal handlers
+   memset(&action, 0, sizeof(action));
+   action.sa_handler = HandleSignal;
+   sigaction(SIGTERM, &action, NULL);
+   sigaction(SIGINT, &action, NULL);
+
+   // Initialize X state
+   SSInfo = XScreenSaverAllocInfo();
+   if ((display = XOpenDisplay(NULL)) == NULL) {
+      LOG("Couldn't open X display!\n");
+      exit(1);
+   }
+   screen = DefaultScreen(display);
 }
 
 int main()
 {
    int idleMS;
 
-   struct sigaction action;
-   memset(&action, 0, sizeof(action));
-   action.sa_handler = HandleSignal;
-   sigaction(SIGTERM, &action, NULL);
-   sigaction(SIGINT, &action, NULL);
+   Init();
 
    while (1) {
       idleMS = GetIdleTimeMS();
