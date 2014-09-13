@@ -47,6 +47,17 @@ typedef enum Mode {
 
 Mode currentMode = LOW_POWER;
 
+// Debug / logging macros
+#ifdef DEBUG
+#define LOGDEBUG(...) \
+   printf(__VA_ARGS__);
+#else
+#define LOGDEBUG(...)
+#endif
+
+#define LOG(...) \
+   printf(__VA_ARGS__);
+
 // Returns the idle time in milliseconds as reported by X
 time_t GetIdleTimeMS () {
    XScreenSaverInfo *SSInfo;
@@ -71,24 +82,26 @@ time_t GetIdleTimeMS () {
 
 void SwitchToLowPower()
 {
-   int ret;
+   int retVal;
 
-   ret = system("nvidia-settings -a [gpu:0]/GPUPowerMizerMode=0");
+   retVal = system("nvidia-settings -a [gpu:0]/GPUPowerMizerMode=0");
+   LOGDEBUG("nvidia-settings returned %d\n", retVal);
 
-   printf("Switched to low power (ret = %d) - polling for action every %d ms\n",
-          ret, IDLE_POLL_FREQ_LOW_POWER_MS);
+   LOG("Switched to low power - polling for action every %d ms\n",
+       IDLE_POLL_FREQ_LOW_POWER_MS);
 
    currentMode = LOW_POWER;
 }
 
 void SwitchToHighPower()
 {
-   int ret;
+   int retVal;
 
-   ret = system("nvidia-settings -a [gpu:0]/GPUPowerMizerMode=1");
+   retVal = system("nvidia-settings -a [gpu:0]/GPUPowerMizerMode=1");
+   LOGDEBUG("nvidia-settings returned %d\n", retVal);
 
-   printf("Switched to high power (ret = %d) - polling for idle every %d ms\n",
-          ret, IDLE_POLL_FREQ_HIGH_POWER_MS);
+   LOG("Switched to high power - polling for idle every %d ms\n",
+       IDLE_POLL_FREQ_HIGH_POWER_MS);
 
    currentMode = HIGH_POWER;
 }
@@ -100,10 +113,8 @@ int main()
    while (1) {
       idleMS = GetIdleTimeMS();
 
-#ifdef DEBUG
-      printf("Poll - idle time: %d ms Mode: %s\n", idleMS,
-              currentMode == LOW_POWER ? "Low power" : "High power");
-#endif
+      LOGDEBUG("Poll - idle time: %d ms Mode: %s\n", idleMS,
+               currentMode == LOW_POWER ? "Low power" : "High power");
 
       if (currentMode == LOW_POWER) {
          if (idleMS < SWITCH_TO_LOW_POWER_AFTER_IDLE_MS) {
