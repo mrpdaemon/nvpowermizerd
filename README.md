@@ -2,10 +2,10 @@ nvpowermizerd
 =============
 
 nvpowermizerd is a daemon to improve the PowerMizer mode switching behavior for
-nVidia cards on Linux/Unix. It uses the X idle time information to switch to
-aggressively switch to full power mode when the user is interacting with the
-system, and gradually switch back to adaptive mode when the user is idle for a
-certain amount of time.
+nVidia cards on Linux/Unix. It uses the X idle time information to aggressively
+switch to full power mode when the user is interacting with the system, and
+gradually switch back to adaptive mode when the user is idle for a certain
+amount of time.
 
 ## Why?
 
@@ -36,4 +36,6 @@ To compile npowermizerd, simply type:
 
 which will create the `nvpowermizerd` executable. You can then run this
 executable directly, or add it to your X session's startup applications so
-it is run automatically.
+it is run automatically. To enable debugging logs compile with:
+
+    CFLAGS="-DDEBUG" make
