@@ -20,7 +20,10 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -106,9 +109,26 @@ void SwitchToHighPower()
    currentMode = HIGH_POWER;
 }
 
+void HandleSignal(int signum)
+{
+   LOGDEBUG("Signal %d received.\n", signum);
+
+   SwitchToLowPower();
+
+   LOG("Exiting program.\n");
+
+   exit(0);
+}
+
 int main()
 {
    int idleMS;
+
+   struct sigaction action;
+   memset(&action, 0, sizeof(action));
+   action.sa_handler = HandleSignal;
+   sigaction(SIGTERM, &action, NULL);
+   sigaction(SIGINT, &action, NULL);
 
    while (1) {
       idleMS = GetIdleTimeMS();
