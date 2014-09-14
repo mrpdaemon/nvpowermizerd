@@ -36,6 +36,4 @@ To compile npowermizerd, simply type:
 
 which will create the `nvpowermizerd` executable. You can then run this
 executable directly, or add it to your X session's startup applications so
-it is run automatically. To enable debugging logs compile with:
-
-    CFLAGS="-DDEBUG" make
+it is run automatically.

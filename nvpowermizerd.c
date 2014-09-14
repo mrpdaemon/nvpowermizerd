@@ -20,12 +20,23 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#include <argp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+// Argument parser / documentation
+const char *argp_program_version = "nvpowermizerd DEVELOPMENT";
+const char *argp_program_bug_address = "markpariente@gmail.com";
+static char doc[] = "nvpowermizerd - a daemon to improve nVidia PowerMizer "
+                    "mode behavior";
+static struct argp_option options[] = {
+   {"verbose", 'v', 0, 0, "Show debugging logs" },
+   {0}
+};
 
 // How long should the system be idle before we switch to lower power mode
 #define SWITCH_TO_LOW_POWER_AFTER_IDLE_MS (20000)
@@ -50,13 +61,14 @@ typedef enum Mode {
 
 static Mode currentMode = LOW_POWER;
 
+// verbose = 0 is LOG only, verbose = 1 also shows LOGDEBUG
+static int verbose = 0;
+
 // Debug / logging macros
-#ifdef DEBUG
-#define LOGDEBUG(...) \
-   printf(__VA_ARGS__);
-#else
-#define LOGDEBUG(...)
-#endif
+#define LOGDEBUG(...)     \
+   if (verbose) {         \
+      printf(__VA_ARGS__);\
+   }
 
 #define LOG(...) \
    printf(__VA_ARGS__);
@@ -67,13 +79,15 @@ static Display *display;
 static int screen;
 
 // Returns the idle time in milliseconds as reported by X
-inline time_t GetIdleTimeMS()
+inline time_t
+GetIdleTimeMS()
 {
    XScreenSaverQueryInfo(display, RootWindow(display,screen), SSInfo);
    return SSInfo->idle;
 }
 
-void SwitchToLowPower()
+void
+SwitchToLowPower()
 {
    int retVal;
 
@@ -86,7 +100,8 @@ void SwitchToLowPower()
    currentMode = LOW_POWER;
 }
 
-void SwitchToHighPower()
+void
+SwitchToHighPower()
 {
    int retVal;
 
@@ -99,13 +114,15 @@ void SwitchToHighPower()
    currentMode = HIGH_POWER;
 }
 
-void Cleanup()
+void
+Cleanup()
 {
    XFree(SSInfo);
    XCloseDisplay(display);
 }
 
-void HandleSignal(int signum)
+void
+HandleSignal(int signum)
 {
    LOGDEBUG("Signal %d received.\n", signum);
 
@@ -116,7 +133,20 @@ void HandleSignal(int signum)
    exit(0);
 }
 
-void Init()
+static error_t
+ParseOption(int key, char *arg, struct argp_state *state)
+{
+   switch (key) {
+      case 'v':
+         verbose = 1;
+         break;
+      default:
+         return ARGP_ERR_UNKNOWN;
+   }
+}
+
+void
+Init()
 {
    struct sigaction action;
 
@@ -135,11 +165,18 @@ void Init()
    screen = DefaultScreen(display);
 }
 
-int main()
+// Parameters for the argument parser
+static struct argp argpParams = {options, ParseOption, NULL, doc};
+
+int
+main(int argc, char *argv[])
 {
    int idleMS;
 
    Init();
+
+   // Parse arguments
+   argp_parse(&argpParams, argc, argv, 0, 0, NULL);
 
    while (1) {
       idleMS = GetIdleTimeMS();
