@@ -94,7 +94,7 @@ SwitchToLowPower()
    retVal = system("nvidia-settings -a [gpu:0]/GPUPowerMizerMode=0");
    LOGDEBUG("nvidia-settings returned %d\n", retVal);
 
-   LOG("Switched to low power - polling for action every %d ms\n",
+   LOG("Switched to low power - polling for action every %dms\n",
        IDLE_POLL_FREQ_LOW_POWER_MS);
 
    currentMode = LOW_POWER;
@@ -108,7 +108,7 @@ SwitchToHighPower()
    retVal = system("nvidia-settings -a [gpu:0]/GPUPowerMizerMode=1");
    LOGDEBUG("nvidia-settings returned %d\n", retVal);
 
-   LOG("Switched to high power - polling for idle every %d ms\n",
+   LOG("Switched to high power - polling for idle every %dms\n",
        IDLE_POLL_FREQ_HIGH_POWER_MS);
 
    currentMode = HIGH_POWER;
@@ -181,20 +181,27 @@ main(int argc, char *argv[])
    while (1) {
       idleMS = GetIdleTimeMS();
 
-      LOGDEBUG("Poll - idle time: %d ms Mode: %s\n", idleMS,
+      LOGDEBUG("Poll - idle time: %dms Mode: %s\n", idleMS,
                currentMode == LOW_POWER ? "Low power" : "High power");
 
       if (currentMode == LOW_POWER) {
          if (idleMS < SWITCH_TO_LOW_POWER_AFTER_IDLE_MS) {
             SwitchToHighPower();
+
+            // We don't need to poll again until the idle timeout
+            LOGDEBUG("Polling again in %dms\n",
+                     SWITCH_TO_LOW_POWER_AFTER_IDLE_MS - idleMS + 1);
+            usleep((SWITCH_TO_LOW_POWER_AFTER_IDLE_MS - idleMS + 1) * 1000);
+         } else {
+            usleep(IDLE_POLL_FREQ_LOW_POWER_MS * 1000);
          }
-      } else {
+      } else { // currentMode == HIGH_POWER
+
          if (idleMS >= SWITCH_TO_LOW_POWER_AFTER_IDLE_MS) {
             SwitchToLowPower();
          }
-      }
 
-      usleep(currentMode == LOW_POWER ? IDLE_POLL_FREQ_LOW_POWER_MS * 1000 :
-                                        IDLE_POLL_FREQ_HIGH_POWER_MS * 1000);
+         usleep(IDLE_POLL_FREQ_HIGH_POWER_MS * 1000);
+      }
    }
 }
