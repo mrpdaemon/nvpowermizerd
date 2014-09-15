@@ -37,3 +37,13 @@ To compile npowermizerd, simply type:
 which will create the `nvpowermizerd` executable. You can then run this
 executable directly, or add it to your X session's startup applications so
 it is run automatically.
+
+To see debug logs launch with:
+
+    nvpowermizerd -v
+
+To specify which GPU nvpowermizerd should manage use:
+
+    nvpowermizerd -g 1
+
+You can use `nvidia-settings -q gpus` to see available GPU's and their ID's.

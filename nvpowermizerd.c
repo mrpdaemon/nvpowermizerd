@@ -35,6 +35,7 @@ static char doc[] = "nvpowermizerd - a daemon to improve nVidia PowerMizer "
                     "mode behavior";
 static struct argp_option options[] = {
    {"verbose", 'v', 0, 0, "Show debugging logs" },
+   {"gpuid", 'g', "GPU-ID", 0, "GPU ID as shown by 'nvidia-settings -q gpus'"},
    {0}
 };
 
@@ -53,13 +54,21 @@ static struct argp_option options[] = {
  */
 #define IDLE_POLL_FREQ_HIGH_POWER_MS (5000)
 
+// Command strings for switching to modes
+#define LOW_POWER_CMD_FMT_STR  "nvidia-settings -a [gpu:%d]/GPUPowerMizerMode=0"
+#define HIGH_POWER_CMD_FMT_STR  "nvidia-settings -a [gpu:%d]/GPUPowerMizerMode=1"
+static char *lowPowerCmd;
+static char *highPowerCmd;
+
 // Whether we're driving the card in high power or low power mode.
 typedef enum Mode {
    LOW_POWER,
    HIGH_POWER,
 } Mode;
 
+// Global state
 static Mode currentMode = LOW_POWER;
+static int gpuID = 0;
 
 // verbose = 0 is LOG only, verbose = 1 also shows LOGDEBUG
 static int verbose = 0;
@@ -91,7 +100,7 @@ SwitchToLowPower()
 {
    int retVal;
 
-   retVal = system("nvidia-settings -a [gpu:0]/GPUPowerMizerMode=0");
+   retVal = system(lowPowerCmd);
    LOGDEBUG("nvidia-settings returned %d\n", retVal);
 
    LOG("Switched to low power - polling for action every %dms\n",
@@ -105,7 +114,7 @@ SwitchToHighPower()
 {
    int retVal;
 
-   retVal = system("nvidia-settings -a [gpu:0]/GPUPowerMizerMode=1");
+   retVal = system(highPowerCmd);
    LOGDEBUG("nvidia-settings returned %d\n", retVal);
 
    LOG("Switched to high power - polling for idle every %dms\n",
@@ -117,6 +126,8 @@ SwitchToHighPower()
 void
 Cleanup()
 {
+   free(lowPowerCmd);
+   free(highPowerCmd);
    XFree(SSInfo);
    XCloseDisplay(display);
 }
@@ -139,6 +150,10 @@ ParseOption(int key, char *arg, struct argp_state *state)
    switch (key) {
       case 'v':
          verbose = 1;
+         break;
+      case 'g':
+         gpuID = atoi(arg);
+         LOGDEBUG("GPU ID set to %d\n", gpuID);
          break;
       default:
          return ARGP_ERR_UNKNOWN;
@@ -167,6 +182,24 @@ Init()
    screen = DefaultScreen(display);
 }
 
+int
+PrepareCommands()
+{
+   int retVal;
+
+   retVal = asprintf(&lowPowerCmd, LOW_POWER_CMD_FMT_STR, gpuID);
+   if (retVal < 0) {
+      return retVal;
+   }
+
+   retVal = asprintf(&highPowerCmd, HIGH_POWER_CMD_FMT_STR, gpuID);
+   if (retVal < 0) {
+      return retVal;
+   }
+
+   return 0;
+}
+
 // Parameters for the argument parser
 static struct argp argpParams = {options, ParseOption, NULL, doc};
 
@@ -179,6 +212,11 @@ main(int argc, char *argv[])
 
    // Parse arguments
    argp_parse(&argpParams, argc, argv, 0, 0, NULL);
+
+   if (PrepareCommands() != 0) {
+      LOG("Failed to allocate memory for command strings");
+      return 1;
+   }
 
    while (1) {
       idleMS = GetIdleTimeMS();
