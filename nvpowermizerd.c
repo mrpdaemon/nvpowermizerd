@@ -237,7 +237,7 @@ main(int argc, char *argv[])
             SwitchToHighPower();
 
             // We don't need to poll again until the idle timeout
-            LOGDEBUG("Polling again in %dms\n", idleTimeoutMS - idleMS + 1);
+            LOGDEBUG("Delaying first poll to %dms\n", idleTimeoutMS - idleMS + 1);
             usleep((idleTimeoutMS - idleMS + 1) * 1000);
          } else {
             usleep(IDLE_POLL_FREQ_LOW_POWER_MS * 1000);
