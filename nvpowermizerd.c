@@ -36,6 +36,7 @@ static char doc[] = "nvpowermizerd - a daemon to improve nVidia PowerMizer "
 static struct argp_option options[] = {
    {"verbose", 'v', 0, 0, "Show debugging logs" },
    {"gpuid", 'g', "GPU-ID", 0, "GPU ID as shown by 'nvidia-settings -q gpus'"},
+   {"idle-timeout", 'i', "SECONDS", 0, "Time to spend in idle mode before switching to low power mode"},
    {0}
 };
 
@@ -69,6 +70,8 @@ typedef enum Mode {
 // Global state
 static Mode currentMode = LOW_POWER;
 static int gpuID = 0;
+static int idleTimeoutMS = SWITCH_TO_LOW_POWER_AFTER_IDLE_MS;
+static int highPowerPollFreqMS = IDLE_POLL_FREQ_HIGH_POWER_MS;
 
 // verbose = 0 is LOG only, verbose = 1 also shows LOGDEBUG
 static int verbose = 0;
@@ -118,7 +121,7 @@ SwitchToHighPower()
    LOGDEBUG("nvidia-settings returned %d\n", retVal);
 
    LOG("Switched to high power - polling for idle every %dms\n",
-       IDLE_POLL_FREQ_HIGH_POWER_MS);
+       highPowerPollFreqMS);
 
    currentMode = HIGH_POWER;
 }
@@ -154,6 +157,11 @@ ParseOption(int key, char *arg, struct argp_state *state)
       case 'g':
          gpuID = atoi(arg);
          LOGDEBUG("GPU ID set to %d\n", gpuID);
+         break;
+      case 'i':
+         idleTimeoutMS = atoi(arg) * 1000;
+         highPowerPollFreqMS = idleTimeoutMS / 4;
+         LOGDEBUG("Idle timeout set to %d seconds\n", atoi(arg));
          break;
       default:
          return ARGP_ERR_UNKNOWN;
@@ -225,23 +233,22 @@ main(int argc, char *argv[])
                currentMode == LOW_POWER ? "Low power" : "High power");
 
       if (currentMode == LOW_POWER) {
-         if (idleMS < SWITCH_TO_LOW_POWER_AFTER_IDLE_MS) {
+         if (idleMS < idleTimeoutMS) {
             SwitchToHighPower();
 
             // We don't need to poll again until the idle timeout
-            LOGDEBUG("Polling again in %dms\n",
-                     SWITCH_TO_LOW_POWER_AFTER_IDLE_MS - idleMS + 1);
-            usleep((SWITCH_TO_LOW_POWER_AFTER_IDLE_MS - idleMS + 1) * 1000);
+            LOGDEBUG("Polling again in %dms\n", idleTimeoutMS - idleMS + 1);
+            usleep((idleTimeoutMS - idleMS + 1) * 1000);
          } else {
             usleep(IDLE_POLL_FREQ_LOW_POWER_MS * 1000);
          }
       } else { // currentMode == HIGH_POWER
 
-         if (idleMS >= SWITCH_TO_LOW_POWER_AFTER_IDLE_MS) {
+         if (idleMS >= idleTimeoutMS) {
             SwitchToLowPower();
          }
 
-         usleep(IDLE_POLL_FREQ_HIGH_POWER_MS * 1000);
+         usleep(highPowerPollFreqMS * 1000);
       }
    }
 }
