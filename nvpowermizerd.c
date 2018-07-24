@@ -91,7 +91,7 @@ static Display *display;
 static int screen;
 
 // Returns the idle time in milliseconds as reported by X
-inline time_t
+static inline time_t
 GetIdleTimeMS()
 {
    XScreenSaverQueryInfo(display, RootWindow(display,screen), SSInfo);
