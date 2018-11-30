@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+
 #include <X11/extensions/scrnsaver.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -91,7 +93,7 @@ static Display *display;
 static int screen;
 
 // Returns the idle time in milliseconds as reported by X
-inline time_t
+static inline time_t
 GetIdleTimeMS()
 {
    XScreenSaverQueryInfo(display, RootWindow(display,screen), SSInfo);
